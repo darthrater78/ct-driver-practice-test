@@ -22,7 +22,7 @@
   <header class="app">
     <div>
       <h1>Connecticut Driver's Manual — Practice Test</h1>
-      <div class="sub">50 questions · live scoring · page-referenced answers</div>
+      <div class="sub">10 · 25 · 50 questions · live scoring · page-referenced answers</div>
     </div>
     <div class="head-right">
       <button id="theme-toggle" class="btn ghost small theme-toggle" type="button" aria-label="Toggle theme">Auto</button>
@@ -35,10 +35,18 @@
     <div id="account" class="hidden"></div>
     <div id="resume-banner" class="hidden"></div>
     <p class="muted" style="margin-top:0">
-      A 50-question practice test built from the State of Connecticut DMV Driver's Manual.
+      A practice test built from the State of Connecticut DMV Driver's Manual.
       Every answer cites the manual page it comes from. You need <b>80%</b> to pass (the same bar as the real 25-question knowledge test).
     </p>
-    <div class="row spread">
+    <div class="count-choose">
+      <span class="count-label">Questions:</span>
+      <div class="chips" id="count-chips">
+        <button class="chip" type="button" data-count="10">10</button>
+        <button class="chip" type="button" data-count="25">25 · real test</button>
+        <button class="chip is-active" type="button" data-count="50">50 · all</button>
+      </div>
+    </div>
+    <div class="row spread" style="margin-top:14px">
       <label class="toggle">
         <input type="checkbox" id="opt-random" />
         <span>Randomize — shuffle the question order and answer choices for a fresh test</span>

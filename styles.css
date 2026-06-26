@@ -60,6 +60,15 @@ header.app .head-right { display: flex; align-items: center; gap: 10px; flex-wra
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .spread { justify-content: space-between; }
 
+/* question-count chips */
+.count-choose { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.count-label { color: var(--muted); font-size: 14px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink);
+  border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 600; transition: background .12s ease, border-color .12s ease; }
+.chip:hover { border-color: var(--accent); }
+.chip.is-active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+
 .toggle { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; color: var(--ink); }
 .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
 .muted { color: var(--muted); }
@@ -146,5 +155,7 @@ footer.app { color: var(--muted); font-size: 12px; margin-top: 26px; text-align:
 .accounts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .account-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; }
+.account-name { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.account-name-btn { font-weight: 700; }
 .btn.danger { color: var(--bad); border-color: var(--bad); }
 .btn.danger:hover { background: var(--bad); color: #fff; border-color: var(--bad); }

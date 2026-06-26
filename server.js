@@ -230,11 +230,11 @@ async function handleApi(req, res) {
     return json(res, 200, { ok: true });
   }
 
-  // List all accounts (requires a session). Trusted-users feature: anyone signed
-  // in can see and delete names — gate exposure with REGISTRATION_OPEN + your proxy.
+  // List all accounts. Public so the dashboard can show the picker before sign-in.
+  // Trusted-network feature (passwordless): gate exposure with REGISTRATION_OPEN +
+  // your reverse proxy. `current` reflects the caller's session if any.
   if (url === "/api/accounts" && req.method === "GET") {
-    const u = currentUser(req);
-    if (!u) return json(res, 401, { error: "not signed in" });
+    const u = currentUser(req); // may be null
     const accounts = Object.keys(db.users).map(function (name) {
       const d = (db.users[name] && db.users[name].data) || {};
       return { username: name, attempts: Array.isArray(d.history) ? d.history.length : 0,
@@ -243,19 +243,18 @@ async function handleApi(req, res) {
     return json(res, 200, { accounts: accounts, current: u });
   }
 
-  // Delete an account and purge its stored data (requires a session).
+  // Delete an account and purge its stored data. Public (rate-limited) so it can be
+  // managed from the dashboard without signing in first.
   if (url === "/api/account" && req.method === "DELETE") {
-    const u = currentUser(req);
-    if (!u) return json(res, 401, { error: "not signed in" });
     if (rateLimited(ip)) return json(res, 429, { error: "Too many attempts. Try again later." });
     const body = await readBody(req).catch(function () { return null; });
     if (!body) return json(res, 400, { error: "Bad request." });
     const target = String(body.username || "").trim().toLowerCase();
     if (!validUsername(target)) return json(res, 400, { error: "Invalid name." });
     if (!db.users[target]) return json(res, 404, { error: "No such account." });
+    const deletedSelf = currentUser(req) === target; // capture before deleting
     delete db.users[target];
     persist();
-    const deletedSelf = target === u;
     if (deletedSelf) clearSessionCookie(req, res); // you deleted the name you were using
     return json(res, 200, { ok: true, deletedSelf: deletedSelf });
   }
