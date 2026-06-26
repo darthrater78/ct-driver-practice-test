@@ -4,6 +4,17 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CT Driver's Manual — Practice Test</title>
+<script>
+  /* Apply the saved theme before first paint to avoid a flash of the wrong theme. */
+  (function () {
+    try {
+      var t = localStorage.getItem("ctDriverTest.theme") || "auto";
+      document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {
+      document.documentElement.setAttribute("data-theme", "auto");
+    }
+  })();
+</script>
 <style>/*__STYLES__*/</style>
 </head>
 <body>
@@ -13,7 +24,10 @@
       <h1>Connecticut Driver's Manual — Practice Test</h1>
       <div class="sub">50 questions · live scoring · page-referenced answers</div>
     </div>
-    <span class="badge">v__VERSION__ · Manual rev. March 2023</span>
+    <div class="head-right">
+      <button id="theme-toggle" class="btn ghost small theme-toggle" type="button" aria-label="Toggle theme">Auto</button>
+      <span class="badge">v__VERSION__ · Manual rev. March 2023</span>
+    </div>
   </header>
 
   <!-- Start screen / dashboard -->

@@ -5,6 +5,12 @@
   var PASS_PCT = 80;                              // CT knowledge test pass mark is 20/25 = 80%
   var HISTORY_KEY = "ctDriverTest.history.v1";
   var PROGRESS_KEY = "ctDriverTest.inProgress.v1"; // saved mid-test session
+  var THEME_KEY = "ctDriverTest.theme";            // "auto" | "light" | "dark"
+  var THEMES = [
+    { id: "auto", label: "Auto", icon: "🖥️" },
+    { id: "light", label: "Light", icon: "☀️" },
+    { id: "dark", label: "Dark", icon: "🌙" }
+  ];
   var MANUAL_FILE = "Drivers Manual English.pdf";  // local reference, kept beside this app
   // Printed page numbers are offset from PDF page indices by 2 (printed p.1 == PDF page 3,
   // verified end-to-end). #page= jumps the viewer to the right section.
@@ -333,8 +339,32 @@
     box.scrollIntoView({ behavior: "smooth" });
   }
 
+  /* ---------- theme toggle (Auto / Light / Dark) ---------- */
+  function currentTheme() {
+    try { return localStorage.getItem(THEME_KEY) || "auto"; } catch (e) { return "auto"; }
+  }
+  function applyTheme(id) {
+    if (!THEMES.some(function (t) { return t.id === id; })) id = "auto";
+    document.documentElement.setAttribute("data-theme", id);
+    try { localStorage.setItem(THEME_KEY, id); } catch (e) {}
+    var t = THEMES.filter(function (x) { return x.id === id; })[0];
+    var btn = $("#theme-toggle");
+    if (btn) {
+      btn.textContent = t.icon + " " + t.label;
+      btn.setAttribute("aria-label", "Theme: " + t.label + " (click to change)");
+    }
+  }
+  function initTheme() {
+    applyTheme(currentTheme());
+    $("#theme-toggle").onclick = function () {
+      var ids = THEMES.map(function (x) { return x.id; });
+      applyTheme(ids[(ids.indexOf(currentTheme()) + 1) % ids.length]);
+    };
+  }
+
   /* ---------- init ---------- */
   function init() {
+    initTheme();
     $("#btn-start").onclick = function () {
       // Starting a brand-new test replaces any in-progress one.
       var p = loadProgress();
