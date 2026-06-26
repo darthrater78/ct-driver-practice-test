@@ -130,3 +130,13 @@ footer.app { color: var(--muted); font-size: 12px; margin-top: 26px; text-align:
 #resume-banner .resume-title { font-weight: 700; font-size: 16px; }
 #resume-banner .sep { border: none; border-top: 1px solid var(--line); margin: 16px 0 4px; }
 #sb-exit { margin-left: auto; }
+
+/* account panel on the dashboard */
+#account { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+#account .resume-title { font-weight: 700; font-size: 16px; }
+#account .acct-who { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.auth-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.auth-input { flex: 1 1 160px; min-width: 140px; background: var(--panel-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 14px; }
+.auth-input:focus { outline: none; border-color: var(--accent); }
+.auth-msg { margin-top: 8px; min-height: 1em; }
