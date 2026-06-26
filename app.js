@@ -80,19 +80,32 @@
       return api("PUT", "/api/data", { history: loadHistory(), inProgress: loadProgressRaw() }).catch(function () {});
     });
   }
+  function continueAs(name) {
+    return api("POST", "/api/account", { username: name }).then(function (res) {
+      if (res.ok) {
+        account.user = res.data.username;
+        return pullAndMerge().then(function () { renderAccount(); renderHistory(); renderResumeBanner(); });
+      }
+    });
+  }
   function renderAccountsList(container) {
     container.innerHTML = "";
-    container.appendChild(el("div", "resume-title", "Accounts"));
-    container.appendChild(el("div", "hint", "Deleting an account permanently removes its scores and progress."));
-    var listEl = el("div", "accounts-list");
-    container.appendChild(listEl);
     api("GET", "/api/accounts").then(function (res) {
-      if (!res.ok) { listEl.appendChild(el("div", "hint", "(could not load accounts)")); return; }
-      (res.data.accounts || []).forEach(function (a) {
+      var accounts = (res.ok && res.data.accounts) || [];
+      if (!accounts.length) return; // nothing to show until a name exists
+      container.appendChild(el("div", "resume-title", "Accounts"));
+      container.appendChild(el("div", "hint", "Tap a name to continue, or delete to remove it and its progress."));
+      var listEl = el("div", "accounts-list");
+      container.appendChild(listEl);
+      accounts.forEach(function (a) {
+        var isCurrent = a.username === res.data.current;
         var row = el("div", "account-row");
-        var label = el("div", "account-name");
-        label.appendChild(el("b", null, a.username + (a.username === res.data.current ? " (you)" : "")));
-        label.appendChild(el("span", "hint", " — " + a.attempts + " attempt" + (a.attempts === 1 ? "" : "s")));
+        var use = el("button", "btn ghost small account-name-btn", a.username + (isCurrent ? " (you)" : ""));
+        use.title = "Continue as " + a.username;
+        use.onclick = function () { continueAs(a.username); };
+        var left = el("div", "account-name");
+        left.appendChild(use);
+        left.appendChild(el("span", "hint", a.attempts + " attempt" + (a.attempts === 1 ? "" : "s")));
         var del = el("button", "btn ghost small danger", "Delete");
         del.onclick = function () {
           if (!confirm('Delete account "' + a.username + '"? Its scores and progress will be permanently removed.')) return;
@@ -102,7 +115,7 @@
             else { renderAccountsList(container); }
           }).catch(function () { alert("Network error."); });
         };
-        row.appendChild(label); row.appendChild(del);
+        row.appendChild(left); row.appendChild(del);
         listEl.appendChild(row);
       });
     });
@@ -125,36 +138,37 @@
       out.onclick = function () { api("POST", "/api/logout").then(function () { account.user = null; renderAccount(); }); };
       row.appendChild(left); row.appendChild(out);
       box.appendChild(row);
-      var manage = el("div", "accounts-manage");
-      box.appendChild(manage);
-      renderAccountsList(manage);
-      return;
+    } else {
+      box.appendChild(el("div", "resume-title", "Track your progress across devices"));
+      box.appendChild(el("div", "hint", account.registrationOpen
+        ? "Pick a name to track your scores. Enter the same name on another device to continue — no password needed."
+        : "Enter your existing name to continue your scores on this device."));
+      var form = el("div", "auth-form");
+      var u = el("input", "auth-input"); u.type = "text"; u.placeholder = "your name";
+      u.autocapitalize = "none"; u.autocomplete = "username"; u.maxLength = 32;
+      var go = el("button", "btn primary small", "Continue");
+      form.appendChild(u); form.appendChild(go);
+      var msg = el("div", "auth-msg hint");
+      box.appendChild(form); box.appendChild(msg);
+
+      var submit = function () {
+        msg.textContent = "Working…";
+        api("POST", "/api/account", { username: u.value }).then(function (res) {
+          if (res.ok) {
+            account.user = res.data.username;
+            return pullAndMerge().then(function () { renderAccount(); renderHistory(); renderResumeBanner(); });
+          }
+          msg.textContent = (res.data && res.data.error) || "Something went wrong.";
+        }).catch(function () { msg.textContent = "Network error — is the server reachable?"; });
+      };
+      go.onclick = function () { submit(); };
+      u.onkeydown = function (e) { if (e.key === "Enter") submit(); };
     }
 
-    box.appendChild(el("div", "resume-title", "Track your progress across devices"));
-    box.appendChild(el("div", "hint", account.registrationOpen
-      ? "Pick a name to track your scores. Enter the same name on another device to continue — no password needed."
-      : "Enter your existing name to continue your scores on this device."));
-    var form = el("div", "auth-form");
-    var u = el("input", "auth-input"); u.type = "text"; u.placeholder = "your name";
-    u.autocapitalize = "none"; u.autocomplete = "username"; u.maxLength = 32;
-    var go = el("button", "btn primary small", "Continue");
-    form.appendChild(u); form.appendChild(go);
-    var msg = el("div", "auth-msg hint");
-    box.appendChild(form); box.appendChild(msg);
-
-    function submit() {
-      msg.textContent = "Working…";
-      api("POST", "/api/account", { username: u.value }).then(function (res) {
-        if (res.ok) {
-          account.user = res.data.username;
-          return pullAndMerge().then(function () { renderAccount(); renderHistory(); renderResumeBanner(); });
-        }
-        msg.textContent = (res.data && res.data.error) || "Something went wrong.";
-      }).catch(function () { msg.textContent = "Network error — is the server reachable?"; });
-    }
-    go.onclick = function () { submit(); };
-    u.onkeydown = function (e) { if (e.key === "Enter") submit(); };
+    // Accounts list — always shown on the dashboard, right under "Track your progress".
+    var manage = el("div", "accounts-manage");
+    box.appendChild(manage);
+    renderAccountsList(manage);
   }
 
   /* ---------- persistence: in-progress session ---------- */
@@ -339,10 +353,11 @@
   }
 
   /* ---------- start / resume a test ---------- */
-  function startTest(randomize) {
+  function startTest(randomize, count) {
     state.mode = randomize ? "random" : "ordered";
+    state.count = (typeof count === "number" && count > 0) ? count : QUESTIONS.length;
     state.attempt = QuizEngine.buildAttempt(QUESTIONS, {
-      shuffleQuestions: randomize, shuffleOptions: randomize
+      shuffleQuestions: randomize, shuffleOptions: randomize, count: state.count
     });
     state.responses = state.attempt.map(function () { return null; });
     saveProgress();
@@ -456,12 +471,13 @@
     card.appendChild(el("div", "verdict " + (passed ? "pass" : "fail"),
       passed ? "PASS — you'd meet the 80% mark" : "Keep studying — " + PASS_PCT + "% needed to pass"));
 
+    var keepCount = state.count || total;
     var actions = el("div", "row");
     actions.style.marginTop = "14px";
     var again = el("button", "btn primary", "Retake (same order)");
-    again.onclick = function () { startTest(false); };
+    again.onclick = function () { startTest(false, keepCount); };
     var rand = el("button", "btn", "New randomized test");
-    rand.onclick = function () { startTest(true); };
+    rand.onclick = function () { startTest(true, keepCount); };
     var review = el("button", "btn ghost", "Review answers above");
     review.onclick = function () { $("#quiz").scrollIntoView({ behavior: "smooth" }); };
     var dash = el("button", "btn ghost", "Back to dashboard");
@@ -495,14 +511,33 @@
     };
   }
 
+  /* ---------- question-count chips ---------- */
+  function selectedCount() {
+    var active = document.querySelector("#count-chips .chip.is-active");
+    var n = active ? parseInt(active.dataset.count, 10) : QUESTIONS.length;
+    if (!(n > 0)) n = QUESTIONS.length;
+    return Math.min(n, QUESTIONS.length);
+  }
+  function initCountChips() {
+    var chips = $("#count-chips");
+    if (!chips) return;
+    Array.prototype.forEach.call(chips.querySelectorAll(".chip"), function (ch) {
+      ch.onclick = function () {
+        Array.prototype.forEach.call(chips.querySelectorAll(".chip"), function (c) { c.classList.remove("is-active"); });
+        ch.classList.add("is-active");
+      };
+    });
+  }
+
   /* ---------- init ---------- */
   function init() {
     initTheme();
+    initCountChips();
     $("#btn-start").onclick = function () {
       // Starting a brand-new test replaces any in-progress one.
       var p = loadProgress();
       if (p && !confirm("Start a new test? This replaces your in-progress test.")) return;
-      startTest($("#opt-random").checked);
+      startTest($("#opt-random").checked, selectedCount());
     };
     $("#sb-exit").onclick = function () {
       saveProgress();          // already saved on each answer, but be explicit

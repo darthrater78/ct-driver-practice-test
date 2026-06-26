@@ -98,6 +98,41 @@ for (let i = 0; i < 20; i++) {
 }
 check(anyDifferent, "shuffle produces a different order at least once");
 
+// ---- 5. Question-count subsets (chips) keep correctness + draw from the pool ----
+console.log("[5] Question-count subsets (10 / 25 / over-cap)");
+[10, 25, 50, 999].forEach(function (count) {
+  // ordered: first N, no shuffle
+  const ordered = buildAttempt(QUESTIONS, { shuffleQuestions: false, shuffleOptions: false, count: count });
+  const expected = Math.min(count, QUESTIONS.length);
+  check(ordered.length === expected, "ordered count=" + count + " yields " + expected + " questions (got " + ordered.length + ")");
+  ordered.forEach(function (it) {
+    check(it.options[it.correctIndex].text === truth[it.sourceIndex], "ordered subset preserves correct text (count=" + count + ")");
+  });
+  if (count < QUESTIONS.length) {
+    // ordered subset must be exactly the first N source indices
+    const inOrder = ordered.every(function (it, i) { return it.sourceIndex === i; });
+    check(inOrder, "ordered count=" + count + " is the first N in order");
+  }
+});
+
+// randomized subsets: correctness preserved, no dupes, and the pool is actually sampled
+const drawn = new Set();
+let subsetFailures = 0;
+for (let trial = 0; trial < 5000; trial++) {
+  const a = buildAttempt(QUESTIONS, { shuffleQuestions: true, shuffleOptions: true, count: 10, rng: mulberry32(trial + 9) });
+  if (a.length !== 10) subsetFailures++;
+  const seen = new Set();
+  a.forEach(function (it) {
+    if (seen.has(it.sourceIndex)) subsetFailures++;     // no duplicate questions within an attempt
+    seen.add(it.sourceIndex);
+    drawn.add(it.sourceIndex);
+    if (it.options[it.correctIndex].text !== truth[it.sourceIndex]) subsetFailures++;  // key intact
+    if (it.options.filter(function (o) { return o.isCorrect; }).length !== 1) subsetFailures++;
+  });
+}
+check(subsetFailures === 0, "randomized count=10 subsets: no dupes, exactly one correct, key intact (failures: " + subsetFailures + ")");
+check(drawn.size === QUESTIONS.length, "randomized 10-question subsets eventually draw from the whole pool (" + drawn.size + "/" + QUESTIONS.length + ")");
+
 console.log("");
 if (failures === 0) {
   console.log("ALL CHECKS PASSED — answer key is accurate and randomization is safe.");

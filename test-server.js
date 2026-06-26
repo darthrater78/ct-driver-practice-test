@@ -112,34 +112,33 @@ function req(port, method, urlPath, opts) {
   r = await req(port, "POST", "/api/account", { body: { username: "tester_1" } });
   const sess = r.cookie;
 
-  // 12. listing accounts requires a session
+  // 12. listing accounts is public (no session needed) so the dashboard can show it
   r = await req(port, "GET", "/api/accounts");
-  check(r.status === 401, "GET /api/accounts unauthenticated returns 401");
+  check(r.status === 200 && Array.isArray(r.json.accounts), "GET /api/accounts is public (200 + list)");
 
-  // 13. create a second account, then list shows both
+  // 13. create a second account, then list shows both; current reflects the session
   await req(port, "POST", "/api/account", { body: { username: "tester_2" } });
   r = await req(port, "GET", "/api/accounts", { cookie: sess });
-  check(r.status === 200 && Array.isArray(r.json.accounts), "GET /api/accounts returns a list");
   var names = (r.json.accounts || []).map(function (a) { return a.username; });
   check(names.indexOf("tester_1") > -1 && names.indexOf("tester_2") > -1, "list includes both accounts");
-  check(r.json.current === "tester_1", "list marks the current account");
+  check(r.json.current === "tester_1", "list marks the current account from the session");
 
-  // 14. delete another account; it disappears from the list and from disk
-  r = await req(port, "DELETE", "/api/account", { cookie: sess, body: { username: "tester_2" } });
-  check(r.status === 200 && r.json.deletedSelf === false, "delete other account succeeds (deletedSelf=false)");
-  r = await req(port, "GET", "/api/accounts", { cookie: sess });
+  // 14. delete another account WITHOUT a session (public); gone from list + disk
+  r = await req(port, "DELETE", "/api/account", { body: { username: "tester_2" } });
+  check(r.status === 200 && r.json.deletedSelf === false, "public delete of another account succeeds");
+  r = await req(port, "GET", "/api/accounts");
   check((r.json.accounts || []).every(function (a) { return a.username !== "tester_2"; }), "deleted account gone from list");
   check(fs.readFileSync(path.join(tmp, "db.json"), "utf8").indexOf("tester_2") === -1, "deleted account purged from db.json");
 
-  // 15. delete requires a session
-  r = await req(port, "DELETE", "/api/account", { body: { username: "tester_1" } });
-  check(r.status === 401, "DELETE without session returns 401");
+  // 15. deleting a non-existent account returns 404
+  r = await req(port, "DELETE", "/api/account", { body: { username: "ghost_user" } });
+  check(r.status === 404, "delete of a non-existent account returns 404");
 
-  // 16. delete your own account ends the session and the name no longer resolves
+  // 16. deleting the name tied to your session ends that session
   r = await req(port, "DELETE", "/api/account", { cookie: sess, body: { username: "tester_1" } });
-  check(r.status === 200 && r.json.deletedSelf === true, "delete own account returns deletedSelf=true");
+  check(r.status === 200 && r.json.deletedSelf === true, "deleting your current name returns deletedSelf=true");
   r = await req(port, "GET", "/api/me", { cookie: sess });
-  check(r.status === 401, "old session is invalid after the account is deleted");
+  check(r.status === 401, "old session is invalid after its account is deleted");
 
   // 17. on-disk store never held password/hash/salt fields (passwordless)
   const dbRaw = fs.readFileSync(path.join(tmp, "db.json"), "utf8");

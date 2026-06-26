@@ -1,4 +1,4 @@
-# Connecticut Driver's Manual — Practice Test (v1.3.0)
+# Connecticut Driver's Manual — Practice Test (v1.4.0)
 
 A self-contained Windows/browser app: a 50-question practice test built from the
 **State of Connecticut DMV Driver's Manual (rev. March 2023)**.
@@ -15,6 +15,8 @@ Features:
   `Drivers Manual English.pdf` (no internet / external links) and **jumps to the right
   page** via `#page=`. The manual's printed page numbers are offset from the PDF's page
   indices by **+2** (printed p.1 = PDF page 3, verified end-to-end), so the link adds 2.
+- **Choose how many** — chips pick a **10**, **25** (matches the real exam), or **50**
+  (all) question test. Shorter tests draw a random subset when Randomize is on.
 - **Randomize** — checkbox shuffles question order *and* answer choices for a fresh
   test every time. Correctness always follows the answer text, never its position.
 - **Theme toggle** — a header button cycles **Auto / Light / Dark**. Auto follows the
@@ -26,9 +28,11 @@ Features:
   pass count), a trend sparkline, and a table.
 - **Accounts & cross-device sync** *(when served by the backend)* — pick a name (no
   password) and your score history and in-progress test follow you to any device;
-  enter the same name elsewhere to continue. The dashboard lists all accounts and
-  lets you **delete** one (which purges its data from `db.json`). Without a backend
-  (opened as a plain file) the app runs in guest mode using `localStorage`.
+  enter the same name elsewhere to continue. The dashboard always lists all accounts
+  (tap a name to continue as it) and lets you **delete** one (purging its data from
+  `db.json`). Listing and deletion are public — a trusted-network feature; gate it with
+  `REGISTRATION_OPEN=false` and your proxy. Without a backend (opened as a plain file)
+  the app runs in guest mode using `localStorage`.
 - Pass mark is **80%**, matching the real 25-question knowledge test.
 
 ## Accuracy

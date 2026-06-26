@@ -52,6 +52,13 @@
     if (opts.shuffleQuestions) {
       items = shuffle(items, rng);
     }
+    // Optional question count: take a subset. With shuffleQuestions on this is a
+    // random subset of the pool; otherwise it's the first N in order. Clamped to
+    // the bank size; ignored when count is missing/invalid/>= the pool.
+    const count = opts.count;
+    if (typeof count === "number" && count > 0 && count < items.length) {
+      items = items.slice(0, count);
+    }
     return items;
   }
 
