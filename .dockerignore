@@ -9,3 +9,6 @@ Dockerfile
 docker-compose.yml
 node_modules
 *.log
+public
+.localdata
+data

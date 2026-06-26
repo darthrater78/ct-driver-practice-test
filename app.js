@@ -28,6 +28,104 @@
   // Live session. responses[i] = chosen option index, or null if unanswered.
   var state = { attempt: [], responses: [], mode: "ordered" };
 
+  /* ---------- account + cross-device sync ----------
+     When a backend is present and the user is signed in, history + in-progress
+     are mirrored to the server (debounced). Opened as a plain file / offline,
+     the backend is unreachable and the app stays in localStorage-only guest mode. */
+  var account = { user: null, available: false, registrationOpen: true };
+  var pushTimer = null;
+
+  function api(method, urlPath, body) {
+    var opts = { method: method, headers: {}, credentials: "same-origin" };
+    if (body !== undefined) { opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+    return fetch(urlPath, opts).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        return { ok: res.ok, status: res.status, data: data };
+      });
+    });
+  }
+  function loadProgressRaw() {
+    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY)); } catch (e) { return null; }
+  }
+  function schedulePush() {
+    if (!account.user) return;
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(function () {
+      api("PUT", "/api/data", { history: loadHistory(), inProgress: loadProgressRaw() }).catch(function () {});
+    }, 500);
+  }
+  function mergeHistory(a, b) {
+    var seen = {}, out = [];
+    (a || []).concat(b || []).forEach(function (r) {
+      if (!r || typeof r.ts !== "number") return;
+      var key = r.ts + ":" + r.pct + ":" + r.correct;
+      if (!seen[key]) { seen[key] = 1; out.push(r); }
+    });
+    out.sort(function (x, y) { return x.ts - y.ts; });
+    return out.slice(-100);
+  }
+  function initAccount() {
+    return api("GET", "/api/me").then(function (res) {
+      account.available = true; // backend reachable
+      if (res.data && typeof res.data.registrationOpen === "boolean") account.registrationOpen = res.data.registrationOpen;
+      if (res.ok && res.data.username) { account.user = res.data.username; return pullAndMerge(); }
+    }).catch(function () { account.available = false; });
+  }
+  function pullAndMerge() {
+    return api("GET", "/api/data").then(function (res) {
+      if (!res.ok) return;
+      var server = res.data || {};
+      saveHistory(mergeHistory(loadHistory(), server.history || []));
+      if (server.inProgress) { try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(server.inProgress)); } catch (e) {} }
+      return api("PUT", "/api/data", { history: loadHistory(), inProgress: loadProgressRaw() }).catch(function () {});
+    });
+  }
+  function renderAccount() {
+    var box = $("#account");
+    if (!box) return;
+    box.innerHTML = "";
+    if (!account.available) { box.classList.add("hidden"); return; } // offline / single-file
+    box.classList.remove("hidden");
+
+    if (account.user) {
+      var row = el("div", "row spread");
+      var left = el("div", "acct-who");
+      left.appendChild(el("span", null, "Tracking progress as "));
+      left.appendChild(el("b", null, account.user));
+      left.appendChild(el("span", "hint", " — synced across devices"));
+      var out = el("button", "btn ghost small", "Switch / sign out");
+      out.onclick = function () { api("POST", "/api/logout").then(function () { account.user = null; renderAccount(); }); };
+      row.appendChild(left); row.appendChild(out);
+      box.appendChild(row);
+      return;
+    }
+
+    box.appendChild(el("div", "resume-title", "Track your progress across devices"));
+    box.appendChild(el("div", "hint", account.registrationOpen
+      ? "Pick a name to track your scores. Enter the same name on another device to continue — no password needed."
+      : "Enter your existing name to continue your scores on this device."));
+    var form = el("div", "auth-form");
+    var u = el("input", "auth-input"); u.type = "text"; u.placeholder = "your name";
+    u.autocapitalize = "none"; u.autocomplete = "username"; u.maxLength = 32;
+    var go = el("button", "btn primary small", "Continue");
+    form.appendChild(u); form.appendChild(go);
+    var msg = el("div", "auth-msg hint");
+    box.appendChild(form); box.appendChild(msg);
+
+    function submit() {
+      msg.textContent = "Working…";
+      api("POST", "/api/account", { username: u.value }).then(function (res) {
+        if (res.ok) {
+          account.user = res.data.username;
+          return pullAndMerge().then(function () { renderAccount(); renderHistory(); renderResumeBanner(); });
+        }
+        msg.textContent = (res.data && res.data.error) || "Something went wrong.";
+      }).catch(function () { msg.textContent = "Network error — is the server reachable?"; });
+    }
+    go.onclick = function () { submit(); };
+    u.onkeydown = function (e) { if (e.key === "Enter") submit(); };
+  }
+
   /* ---------- persistence: in-progress session ---------- */
   function saveProgress() {
     try {
@@ -35,6 +133,7 @@
         v: 1, mode: state.mode, attempt: state.attempt, responses: state.responses
       }));
     } catch (e) {}
+    schedulePush();
   }
   function loadProgress() {
     try {
@@ -52,6 +151,7 @@
   }
   function clearProgress() {
     try { localStorage.removeItem(PROGRESS_KEY); } catch (e) {}
+    schedulePush();
   }
   function progressCounts(p) {
     var answered = 0, correct = 0;
@@ -68,6 +168,7 @@
   }
   function saveHistory(list) {
     try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch (e) {}
+    schedulePush();
   }
   function recordAttempt(correct, total, mode) {
     var list = loadHistory();
@@ -117,6 +218,7 @@
     $("#quiz").classList.add("hidden");
     $("#results").classList.add("hidden");
     $("#start").classList.remove("hidden");
+    renderAccount();
     renderResumeBanner();
     renderHistory();
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -376,6 +478,12 @@
       showDashboard();
     };
 
+    // Check for a signed-in account and pull synced data first, then route.
+    // (If there's no backend — e.g. opened as a file — this resolves quickly.)
+    initAccount().then(route, route);
+  }
+
+  function route() {
     // Refreshing mid-test resumes instead of dumping you on the dashboard.
     var p = loadProgress();
     if (p && progressCounts(p).answered < p.attempt.length) {

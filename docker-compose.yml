@@ -4,5 +4,9 @@ services:
     image: ct-driver-test
     container_name: ct-driver-test
     ports:
-      - "8080:80"
+      - "8080:8080"
+    volumes:
+      - ./data:/data        # accounts + score history (bind mount)
+    environment:
+      - REGISTRATION_OPEN=true
     restart: unless-stopped

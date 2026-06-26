@@ -1,4 +1,4 @@
-# Connecticut Driver's Manual — Practice Test (v1.1.0)
+# Connecticut Driver's Manual — Practice Test (v1.2.0)
 
 A self-contained Windows/browser app: a 50-question practice test built from the
 **State of Connecticut DMV Driver's Manual (rev. March 2023)**.
@@ -22,8 +22,12 @@ Features:
 - **Resume / Save & exit** — your progress is saved on every answer. Refreshing the
   page resumes the test where you left off (it won't dump you on the dashboard). A
   **Save & exit** button returns to the dashboard, which then offers **Resume test**.
-- **Score history** — every attempt is saved (in this browser's `localStorage`):
-  KPIs (attempts, best, last-5 average, pass count), a trend sparkline, and a table.
+- **Score history** — every attempt is saved: KPIs (attempts, best, last-5 average,
+  pass count), a trend sparkline, and a table.
+- **Accounts & cross-device sync** *(when served by the backend)* — pick a name (no
+  password) and your score history and in-progress test follow you to any device;
+  enter the same name elsewhere to continue. Without a backend (opened as a plain
+  file) the app runs in guest mode using `localStorage`.
 - Pass mark is **80%**, matching the real 25-question knowledge test.
 
 ## Accuracy
@@ -46,32 +50,60 @@ Features:
 | `styles.css` | Styling (auto light/dark). |
 | `index.template.html` | HTML shell with inline-injection markers. |
 | `build.js` | Inlines the above into the single HTML file. |
+| `server.js` | Zero-dependency Node backend: static serving + accounts API. |
 | `test-randomization.js` | Accuracy + randomization test harness. |
+| `test-server.js` | Auth/data round-trip test for the backend. |
 | `Drivers Manual English.pdf` | The reference manual; answer links open it locally. |
 | `manual-source.txt` | Extracted manual text, kept for editing questions later. |
 
 ## Run as a Docker container
 
-Super lightweight: the runtime image is just `nginx:alpine` serving the assembled
-HTML and the PDF. A throwaway build stage regenerates the HTML from source and runs
-the accuracy test, so a bad answer key fails the image build.
+Lightweight: the runtime is a single `node:alpine` image running a **zero-dependency**
+Node server (no npm install, no native builds). A throwaway build stage regenerates the
+HTML and runs both tests, so a bad answer key or broken auth fails the image build.
+
+Accounts and score history persist to **`/data`** — bind-mount a host directory there.
 
 ```bash
-# with docker compose (serves on http://localhost:8080)
+# with docker compose (serves on http://localhost:8080, data in ./data)
 docker compose up -d
 
-# or plain docker
+# or plain docker with a bind mount
 docker build -t ct-driver-test .
-docker run -d --name ct-driver-test -p 8080:80 ct-driver-test
+docker run -d --name ct-driver-test -p 8080:8080 \
+  -v /opt/docker/ct-driver-test:/data ct-driver-test
 ```
 
-Then open <http://localhost:8080>. The container is stateless — score history and
-in-progress tests are saved in the visitor's browser (`localStorage`), not the server.
+Then open <http://localhost:8080>.
+
+**Environment variables**
+
+| Var | Default | Purpose |
+|-----|---------|---------|
+| `PORT` | `8080` | Port the server listens on. |
+| `DATA_DIR` | `/data` | Where accounts + the server secret are stored (bind-mount this). |
+| `REGISTRATION_OPEN` | `true` | Set `false` to disable new sign-ups after creating accounts. |
+
+The container runs as the non-root `node` user (uid 1000), so the bind-mounted
+`/data` must be writable by uid 1000 — the server prints a `chown` hint and exits
+if it isn't:
+
+```bash
+sudo mkdir -p /opt/docker/ct-driver-test && sudo chown -R 1000:1000 /opt/docker/ct-driver-test
+```
+
+Accounts are **passwordless** — a name is just a handle to sync progress, so anyone
+who knows a name can read/overwrite that progress (fine for a study tool). Sessions
+are HMAC-signed httpOnly cookies (secret persisted in `DATA_DIR`); the name endpoint
+is rate-limited and input is validated/size-bounded. Put it behind your HTTPS reverse
+proxy for remote access (the session cookie sets `Secure` automatically over HTTPS).
+Set `REGISTRATION_OPEN=false` after creating your names to lock the list.
 
 ## Rebuild after editing
 
 ```bash
 node test-randomization.js   # verify the bank + shuffle
+node test-server.js          # verify the accounts/data backend
 node build.js                # regenerate CT-Driver-Practice-Test.html
 ```
 
