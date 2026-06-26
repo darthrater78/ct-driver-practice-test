@@ -1,0 +1,11 @@
+# Keep the build context tiny — only source + the PDF are needed.
+README.md
+manual-source.txt
+CT-Driver-Practice-Test.html
+.git
+.gitignore
+Dockerfile
+.dockerignore
+docker-compose.yml
+node_modules
+*.log
