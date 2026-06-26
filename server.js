@@ -175,10 +175,16 @@ function currentUser(req) {
 const MIME = { ".html": "text/html; charset=utf-8", ".pdf": "application/pdf",
   ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".ico": "image/x-icon" };
 function serveStatic(req, res) {
-  let rel = decodeURIComponent(req.url.split("?")[0]);
+  let rel;
+  try { rel = decodeURIComponent(req.url.split("?")[0]); }
+  catch (e) { res.writeHead(400, { "Content-Type": "text/plain" }); res.end("bad request"); return; }
   if (rel === "/" || rel === "") rel = "/index.html";
   const full = path.normalize(path.join(PUBLIC_DIR, rel));
-  if (!full.startsWith(PUBLIC_DIR)) { res.writeHead(403); res.end("forbidden"); return; }
+  // Must stay within PUBLIC_DIR — require an exact match or a path-separator boundary
+  // so a sibling like "<public>-x" can't slip past a bare prefix check.
+  if (full !== PUBLIC_DIR && !full.startsWith(PUBLIC_DIR + path.sep)) {
+    res.writeHead(403); res.end("forbidden"); return;
+  }
   fs.readFile(full, function (err, buf) {
     if (err) { res.writeHead(404, { "Content-Type": "text/plain" }); res.end("not found"); return; }
     res.writeHead(200, { "Content-Type": MIME[path.extname(full).toLowerCase()] || "application/octet-stream" });
@@ -189,7 +195,10 @@ function serveStatic(req, res) {
 /* ---------- API ---------- */
 async function handleApi(req, res) {
   const url = req.url.split("?")[0];
-  const ip = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+  // Rate-limit key: trust the rightmost X-Forwarded-For entry (added by our proxy),
+  // not the leftmost (client-spoofable); fall back to the socket address.
+  const xff = req.headers["x-forwarded-for"];
+  const ip = xff ? xff.split(",").pop().trim() : (req.socket.remoteAddress || "");
 
   if (url === "/api/me" && req.method === "GET") {
     const u = currentUser(req);
@@ -221,6 +230,36 @@ async function handleApi(req, res) {
     return json(res, 200, { ok: true });
   }
 
+  // List all accounts (requires a session). Trusted-users feature: anyone signed
+  // in can see and delete names — gate exposure with REGISTRATION_OPEN + your proxy.
+  if (url === "/api/accounts" && req.method === "GET") {
+    const u = currentUser(req);
+    if (!u) return json(res, 401, { error: "not signed in" });
+    const accounts = Object.keys(db.users).map(function (name) {
+      const d = (db.users[name] && db.users[name].data) || {};
+      return { username: name, attempts: Array.isArray(d.history) ? d.history.length : 0,
+        hasInProgress: !!d.inProgress, createdAt: db.users[name].createdAt || null };
+    }).sort(function (a, b) { return a.username < b.username ? -1 : 1; });
+    return json(res, 200, { accounts: accounts, current: u });
+  }
+
+  // Delete an account and purge its stored data (requires a session).
+  if (url === "/api/account" && req.method === "DELETE") {
+    const u = currentUser(req);
+    if (!u) return json(res, 401, { error: "not signed in" });
+    if (rateLimited(ip)) return json(res, 429, { error: "Too many attempts. Try again later." });
+    const body = await readBody(req).catch(function () { return null; });
+    if (!body) return json(res, 400, { error: "Bad request." });
+    const target = String(body.username || "").trim().toLowerCase();
+    if (!validUsername(target)) return json(res, 400, { error: "Invalid name." });
+    if (!db.users[target]) return json(res, 404, { error: "No such account." });
+    delete db.users[target];
+    persist();
+    const deletedSelf = target === u;
+    if (deletedSelf) clearSessionCookie(req, res); // you deleted the name you were using
+    return json(res, 200, { ok: true, deletedSelf: deletedSelf });
+  }
+
   if (url === "/api/data") {
     const u = currentUser(req);
     if (!u) return json(res, 401, { error: "not signed in" });
@@ -239,10 +278,15 @@ async function handleApi(req, res) {
 
 /* ---------- server ---------- */
 const server = http.createServer(function (req, res) {
-  if (req.url.startsWith("/api/")) {
-    handleApi(req, res).catch(function (e) { json(res, 500, { error: "server error" }); });
-  } else {
-    serveStatic(req, res);
+  try {
+    if (req.url.startsWith("/api/")) {
+      handleApi(req, res).catch(function () { try { json(res, 500, { error: "server error" }); } catch (e) {} });
+    } else {
+      serveStatic(req, res);
+    }
+  } catch (e) {
+    // Never let a single bad request take the process down.
+    try { res.writeHead(500, { "Content-Type": "text/plain" }); res.end("server error"); } catch (e2) {}
   }
 });
 

@@ -98,9 +98,51 @@ function req(port, method, urlPath, opts) {
   r = await req(port, "POST", "/api/logout", { cookie: cookie2 });
   check(r.status === 200, "logout returns 200");
 
-  // 10. on-disk store holds the name + data but no password/hash/salt fields
+  // 10. malformed percent-encoding must NOT crash the process (returns 400, stays up)
+  r = await req(port, "GET", "/%");
+  check(r.status === 400, "malformed URL returns 400 instead of crashing (got " + r.status + ")");
+  r = await req(port, "GET", "/api/me");
+  check(typeof r.status === "number", "server still responds after a malformed URL");
+
+  // 11. path traversal is refused
+  r = await req(port, "GET", "/../server.js");
+  check(r.status === 403 || r.status === 404, "path traversal is refused (got " + r.status + ")");
+
+  // (re-establish a session for the management checks)
+  r = await req(port, "POST", "/api/account", { body: { username: "tester_1" } });
+  const sess = r.cookie;
+
+  // 12. listing accounts requires a session
+  r = await req(port, "GET", "/api/accounts");
+  check(r.status === 401, "GET /api/accounts unauthenticated returns 401");
+
+  // 13. create a second account, then list shows both
+  await req(port, "POST", "/api/account", { body: { username: "tester_2" } });
+  r = await req(port, "GET", "/api/accounts", { cookie: sess });
+  check(r.status === 200 && Array.isArray(r.json.accounts), "GET /api/accounts returns a list");
+  var names = (r.json.accounts || []).map(function (a) { return a.username; });
+  check(names.indexOf("tester_1") > -1 && names.indexOf("tester_2") > -1, "list includes both accounts");
+  check(r.json.current === "tester_1", "list marks the current account");
+
+  // 14. delete another account; it disappears from the list and from disk
+  r = await req(port, "DELETE", "/api/account", { cookie: sess, body: { username: "tester_2" } });
+  check(r.status === 200 && r.json.deletedSelf === false, "delete other account succeeds (deletedSelf=false)");
+  r = await req(port, "GET", "/api/accounts", { cookie: sess });
+  check((r.json.accounts || []).every(function (a) { return a.username !== "tester_2"; }), "deleted account gone from list");
+  check(fs.readFileSync(path.join(tmp, "db.json"), "utf8").indexOf("tester_2") === -1, "deleted account purged from db.json");
+
+  // 15. delete requires a session
+  r = await req(port, "DELETE", "/api/account", { body: { username: "tester_1" } });
+  check(r.status === 401, "DELETE without session returns 401");
+
+  // 16. delete your own account ends the session and the name no longer resolves
+  r = await req(port, "DELETE", "/api/account", { cookie: sess, body: { username: "tester_1" } });
+  check(r.status === 200 && r.json.deletedSelf === true, "delete own account returns deletedSelf=true");
+  r = await req(port, "GET", "/api/me", { cookie: sess });
+  check(r.status === 401, "old session is invalid after the account is deleted");
+
+  // 17. on-disk store never held password/hash/salt fields (passwordless)
   const dbRaw = fs.readFileSync(path.join(tmp, "db.json"), "utf8");
-  check(dbRaw.indexOf("tester_1") > -1, "name stored on disk");
   check(dbRaw.indexOf("hash") === -1 && dbRaw.indexOf("salt") === -1 && dbRaw.indexOf("password") === -1,
     "no password/hash/salt fields stored (passwordless)");
 

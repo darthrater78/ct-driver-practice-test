@@ -80,6 +80,34 @@
       return api("PUT", "/api/data", { history: loadHistory(), inProgress: loadProgressRaw() }).catch(function () {});
     });
   }
+  function renderAccountsList(container) {
+    container.innerHTML = "";
+    container.appendChild(el("div", "resume-title", "Accounts"));
+    container.appendChild(el("div", "hint", "Deleting an account permanently removes its scores and progress."));
+    var listEl = el("div", "accounts-list");
+    container.appendChild(listEl);
+    api("GET", "/api/accounts").then(function (res) {
+      if (!res.ok) { listEl.appendChild(el("div", "hint", "(could not load accounts)")); return; }
+      (res.data.accounts || []).forEach(function (a) {
+        var row = el("div", "account-row");
+        var label = el("div", "account-name");
+        label.appendChild(el("b", null, a.username + (a.username === res.data.current ? " (you)" : "")));
+        label.appendChild(el("span", "hint", " — " + a.attempts + " attempt" + (a.attempts === 1 ? "" : "s")));
+        var del = el("button", "btn ghost small danger", "Delete");
+        del.onclick = function () {
+          if (!confirm('Delete account "' + a.username + '"? Its scores and progress will be permanently removed.')) return;
+          api("DELETE", "/api/account", { username: a.username }).then(function (r) {
+            if (!r.ok) { alert((r.data && r.data.error) || "Delete failed."); return; }
+            if (r.data.deletedSelf) { account.user = null; renderAccount(); renderHistory(); renderResumeBanner(); }
+            else { renderAccountsList(container); }
+          }).catch(function () { alert("Network error."); });
+        };
+        row.appendChild(label); row.appendChild(del);
+        listEl.appendChild(row);
+      });
+    });
+  }
+
   function renderAccount() {
     var box = $("#account");
     if (!box) return;
@@ -97,6 +125,9 @@
       out.onclick = function () { api("POST", "/api/logout").then(function () { account.user = null; renderAccount(); }); };
       row.appendChild(left); row.appendChild(out);
       box.appendChild(row);
+      var manage = el("div", "accounts-manage");
+      box.appendChild(manage);
+      renderAccountsList(manage);
       return;
     }
 

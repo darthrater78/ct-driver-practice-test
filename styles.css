@@ -140,3 +140,11 @@ footer.app { color: var(--muted); font-size: 12px; margin-top: 26px; text-align:
   border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 14px; }
 .auth-input:focus { outline: none; border-color: var(--accent); }
 .auth-msg { margin-top: 8px; min-height: 1em; }
+
+/* accounts management list */
+.accounts-manage { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.accounts-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.account-row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; }
+.btn.danger { color: var(--bad); border-color: var(--bad); }
+.btn.danger:hover { background: var(--bad); color: #fff; border-color: var(--bad); }
