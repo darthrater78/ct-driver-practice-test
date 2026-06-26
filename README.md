@@ -1,4 +1,4 @@
-# Connecticut Driver's Manual — Practice Test (v1.2.0)
+# Connecticut Driver's Manual — Practice Test (v1.3.0)
 
 A self-contained Windows/browser app: a 50-question practice test built from the
 **State of Connecticut DMV Driver's Manual (rev. March 2023)**.
@@ -26,8 +26,9 @@ Features:
   pass count), a trend sparkline, and a table.
 - **Accounts & cross-device sync** *(when served by the backend)* — pick a name (no
   password) and your score history and in-progress test follow you to any device;
-  enter the same name elsewhere to continue. Without a backend (opened as a plain
-  file) the app runs in guest mode using `localStorage`.
+  enter the same name elsewhere to continue. The dashboard lists all accounts and
+  lets you **delete** one (which purges its data from `db.json`). Without a backend
+  (opened as a plain file) the app runs in guest mode using `localStorage`.
 - Pass mark is **80%**, matching the real 25-question knowledge test.
 
 ## Accuracy

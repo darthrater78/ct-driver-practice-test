@@ -10,3 +10,10 @@ services:
     environment:
       - REGISTRATION_OPEN=true
     restart: unless-stopped
+
+# The container runs as non-root (uid 1000), so ./data must be writable by 1000.
+# Create it before the first `up`:
+#   mkdir -p data && sudo chown -R 1000:1000 data
+# To run a published image instead of building locally, replace `build: .` with:
+#   image: ghcr.io/darthrater78/ct-driver-practice-test:1.3.0
+# Set REGISTRATION_OPEN=false after creating your names to lock the name list.
