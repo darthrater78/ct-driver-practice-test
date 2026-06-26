@@ -13,12 +13,22 @@
   --bad-bg: #3a1a1c;
   --gold: #f5b301;
   --shadow: 0 6px 24px rgba(0,0,0,.35);
+  --shadow-strong: 0 8px 20px rgba(0,0,0,.45);
+}
+/* Light palette — applied when the user forces light, or in Auto mode when the
+   OS prefers light. data-theme is set by an inline <head> script (no flash). */
+:root[data-theme="light"] {
+  --bg: #f3f6fa; --panel: #ffffff; --panel-2: #f7fafd; --ink: #16212e;
+  --muted: #5a6b7d; --line: #dde6ef; --accent: #1a73e8; --good: #178a4c;
+  --good-bg: #e6f6ec; --bad: #c5292e; --bad-bg: #fbe9ea;
+  --shadow: 0 6px 20px rgba(20,40,70,.10); --shadow-strong: 0 8px 20px rgba(20,40,70,.14);
 }
 @media (prefers-color-scheme: light) {
-  :root {
+  :root[data-theme="auto"] {
     --bg: #f3f6fa; --panel: #ffffff; --panel-2: #f7fafd; --ink: #16212e;
     --muted: #5a6b7d; --line: #dde6ef; --accent: #1a73e8; --good: #178a4c;
-    --good-bg: #e6f6ec; --bad: #c5292e; --bad-bg: #fbe9ea; --shadow: 0 6px 20px rgba(20,40,70,.10);
+    --good-bg: #e6f6ec; --bad: #c5292e; --bad-bg: #fbe9ea;
+    --shadow: 0 6px 20px rgba(20,40,70,.10); --shadow-strong: 0 8px 20px rgba(20,40,70,.14);
   }
 }
 * { box-sizing: border-box; }
@@ -33,7 +43,9 @@ body {
 header.app { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
 header.app h1 { font-size: 22px; margin: 0; letter-spacing: .2px; }
 header.app .sub { color: var(--muted); font-size: 13px; }
+header.app .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+.theme-toggle { min-width: 96px; }
 
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 18px; margin-top: 16px; }
 
@@ -59,10 +71,7 @@ header.app .sub { color: var(--muted); font-size: 13px; }
    scrolling underneath never touches or bleeds past the bar. */
 .scorebar-wrap { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 12px 0 14px; margin-top: 2px; }
 .scorebar-inner { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-  padding: 10px 14px; box-shadow: 0 8px 20px rgba(0,0,0,.45); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-@media (prefers-color-scheme: light) {
-  .scorebar-inner { box-shadow: 0 8px 20px rgba(20,40,70,.14); }
-}
+  padding: 10px 14px; box-shadow: var(--shadow-strong); display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .scorebar .stat b { font-size: 18px; }
 .scorebar .stat span { color: var(--muted); font-size: 12px; display: block; }
 .progress { flex: 1 1 160px; height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; min-width: 120px; }

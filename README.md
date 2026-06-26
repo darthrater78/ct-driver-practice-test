@@ -1,4 +1,4 @@
-# Connecticut Driver's Manual — Practice Test (v1.0.0)
+# Connecticut Driver's Manual — Practice Test (v1.1.0)
 
 A self-contained Windows/browser app: a 50-question practice test built from the
 **State of Connecticut DMV Driver's Manual (rev. March 2023)**.
@@ -17,6 +17,8 @@ Features:
   indices by **+2** (printed p.1 = PDF page 3, verified end-to-end), so the link adds 2.
 - **Randomize** — checkbox shuffles question order *and* answer choices for a fresh
   test every time. Correctness always follows the answer text, never its position.
+- **Theme toggle** — a header button cycles **Auto / Light / Dark**. Auto follows the
+  OS; the choice is saved and applied before first paint (no flash).
 - **Resume / Save & exit** — your progress is saved on every answer. Refreshing the
   page resumes the test where you left off (it won't dump you on the dashboard). A
   **Save & exit** button returns to the dashboard, which then offers **Resume test**.
