@@ -178,6 +178,7 @@ function serveStatic(req, res) {
   let rel;
   try { rel = decodeURIComponent(req.url.split("?")[0]); }
   catch (e) { res.writeHead(400, { "Content-Type": "text/plain" }); res.end("bad request"); return; }
+  if (rel.indexOf("\0") !== -1) { res.writeHead(400, { "Content-Type": "text/plain" }); res.end("bad request"); return; }
   if (rel === "/" || rel === "") rel = "/index.html";
   const full = path.normalize(path.join(PUBLIC_DIR, rel));
   // Must stay within PUBLIC_DIR — require an exact match or a path-separator boundary

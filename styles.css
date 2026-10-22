@@ -45,6 +45,8 @@ header.app h1 { font-size: 22px; margin: 0; letter-spacing: .2px; }
 header.app .sub { color: var(--muted); font-size: 13px; }
 header.app .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
+a.badge { text-decoration: none; }
+a.badge:hover, a.badge:focus-visible { color: var(--ink); border-color: var(--muted); }
 .theme-toggle { min-width: 96px; }
 
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 18px; margin-top: 16px; }

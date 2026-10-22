@@ -108,6 +108,10 @@ function req(port, method, urlPath, opts) {
   r = await req(port, "GET", "/../server.js");
   check(r.status === 403 || r.status === 404, "path traversal is refused (got " + r.status + ")");
 
+  // 11b. a NUL byte in the path is a bad request, not a server error
+  r = await req(port, "GET", "/%00");
+  check(r.status === 400, "NUL byte in path returns 400 (got " + r.status + ")");
+
   // (re-establish a session for the management checks)
   r = await req(port, "POST", "/api/account", { body: { username: "tester_1" } });
   const sess = r.cookie;
