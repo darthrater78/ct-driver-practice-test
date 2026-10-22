@@ -1,0 +1,71 @@
+name: CI
+
+# Builds the image on every PR and every push to main. The Docker build stage
+# runs the accuracy and server tests, so a bad answer key or broken auth fails
+# here. Nothing is pushed to a registry; release.yml does that from tags.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Docs-only changes skip the build; a failed or unsure check runs it.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash scripts/ci-changes.sh "$BASE" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build image and run tests (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ci-image:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Reports only: a CVE in the base image isn't this PR's doing, so it
+      # doesn't fail the check. The release scan is what blocks.
+      - name: Scan image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ci-image:test
+          version: v0.76.1
+          trivy-config: trivy.yaml
+          trivyignores: .trivyignore.yaml
+          format: table
+          exit-code: '0'

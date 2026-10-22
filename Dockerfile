@@ -3,14 +3,14 @@
 # ---- build stage: validate the key + auth, then assemble the single-file HTML ----
 # Discarded after build. The tests gate the image: a bad answer key, a broken
 # shuffle, or broken auth fails the build.
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /src
 COPY quiz-engine.js questions.js app.js styles.css index.template.html \
      build.js test-randomization.js server.js test-server.js ./
 RUN node test-randomization.js && node test-server.js && node build.js
 
 # ---- runtime: tiny zero-dependency Node server (static + accounts API) ----
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=8080 DATA_DIR=/data
 COPY server.js ./

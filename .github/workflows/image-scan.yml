@@ -1,0 +1,65 @@
+name: Image scan
+
+# Rescans the newest published release weekly for CVEs found after release.
+# Never fails: fixing a finding is a new release with a bumped base image.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'  # Mondays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+concurrency:
+  group: image-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The newest stable version tag, never a floating :latest.
+      - name: Find the newest release
+        id: image
+        run: |
+          set -euo pipefail
+          tag="$(git tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -n1 || true)"
+          if [ -z "$tag" ]; then
+            echo "::error::No release tag yet, so there is no published image to scan."
+            exit 1
+          fi
+          echo "ref=ghcr.io/${GITHUB_REPOSITORY,,}:${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan the published image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          version: v0.76.1
+          trivy-config: trivy.yaml
+          trivyignores: .trivyignore.yaml
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: '0'
+
+      - name: Upload scan to the Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-weekly

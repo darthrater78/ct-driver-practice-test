@@ -10,3 +10,7 @@ CT-Driver-Practice-Test.html
 # local dev only
 public/
 .localdata/
+
+# dev-skills session files (local only)
+.dev-skills-gates.md
+.dev-skills-handoff.md
