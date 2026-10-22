@@ -15,3 +15,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # Stay on a Node LTS line. Majors include non-LTS releases (e.g. 25),
+      # so they're moved by hand to the next LTS (24, 26, ...).
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
