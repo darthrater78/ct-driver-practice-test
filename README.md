@@ -1,4 +1,6 @@
-# Connecticut Driver's Manual — Practice Test (v1.4.0)
+# Connecticut Driver's Manual — Practice Test (v1.4.1)
+
+[GitHub](https://github.com/darthrater78/ct-driver-practice-test) · [Release notes for v1.4.1](https://github.com/darthrater78/ct-driver-practice-test/releases/tag/v1.4.1) · [Changelog](CHANGELOG.md)
 
 A self-contained Windows/browser app: a 50-question practice test built from the
 **State of Connecticut DMV Driver's Manual (rev. March 2023)**.
@@ -60,6 +62,7 @@ Features:
 | `test-server.js` | Auth/data round-trip test for the backend. |
 | `Drivers Manual English.pdf` | The reference manual; answer links open it locally. |
 | `manual-source.txt` | Extracted manual text, kept for editing questions later. |
+| `CHANGELOG.md` | Release notes; the release workflow publishes each version's section. |
 | `.github/workflows/` | CI (build + tests on PRs), release (publishes `v*` tags), weekly image scan, CodeQL, workflow lint. |
 | `scripts/ci-changes.sh` | Lets CI skip the build for docs-only changes. |
 | `trivy.yaml`, `.trivyignore.yaml` | Image scan settings and the (dated, expiring) list of accepted findings. |
@@ -81,7 +84,7 @@ sudo mkdir -p /opt/docker/ct-driver-test/data && sudo chown -R 1000:1000 /opt/do
 ```yaml
 services:
   ct-driver-test:
-    image: ghcr.io/darthrater78/ct-driver-practice-test:1.4.0
+    image: ghcr.io/darthrater78/ct-driver-practice-test:1.4.1
     container_name: ct-driver-test
     restart: unless-stopped
     ports:
@@ -91,7 +94,7 @@ services:
     volumes:
       - /opt/docker/ct-driver-test/data:/data
 
-# image: pinned to this release (1.4.0), updated with every release
+# image: pinned to this release (1.4.1), updated with every release
 # ports: 8080 is the web UI. Change the left side for a different host port
 # REGISTRATION_OPEN: set to false after creating your names to lock the list
 # /opt/docker/ct-driver-test/data: accounts, score history and the session secret.

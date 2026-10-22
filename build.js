@@ -9,7 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 const dir = __dirname;
 const read = function (f) { return fs.readFileSync(path.join(dir, f), "utf8"); };
 
