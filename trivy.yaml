@@ -1,0 +1,11 @@
+severity:
+  - HIGH
+  - CRITICAL
+scan:
+  scanners:
+    - vuln
+pkg:
+  types:
+    - os          # the base image's packages; the app has no npm dependencies
+vulnerability:
+  ignore-unfixed: true   # nothing to bump to yet; Gate 3 still reports it

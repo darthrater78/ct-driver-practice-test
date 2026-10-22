@@ -1,0 +1,5 @@
+# One accepted finding per entry, each with a reason and an expiry, e.g.
+#   - id: CVE-2026-12345
+#     statement: "why it is safe; waived by <user> <date>"
+#     expired_at: 2026-12-31
+vulnerabilities: []
